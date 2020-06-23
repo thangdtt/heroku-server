@@ -4,9 +4,9 @@ from flask import request
 
 import requests
 import html
-# import json
+
 import mysql.connector
-from constance import *
+from constance import constances
 
 BASE_URL = "https://vnexpress.net"
 PATH = "/tin-nong"
@@ -91,7 +91,8 @@ def crawNewsData(baseUrl, url):
             if check_lightgallery != []:
                 continue
 
-            check_lightgallery2 = soup.findAll("div", class_="width-detail-photo")
+            check_lightgallery2 = soup.findAll(
+                "div", class_="width-detail-photo")
             if check_lightgallery2 != []:
                 continue
 
@@ -152,9 +153,9 @@ def saveArticles():
     # listToJson("one_day ", data)
 
     # Open database connection
-    db = mysql.connector.connect(user=constance.USERNAME, password=constance.PASSWORD,
-                                 host=constance.HOST,
-                                 database=constance.DATABASE)
+    db = mysql.connector.connect(user=constances.USERNAME, password=constances.PASSWORD,
+                                 host=constances.HOST,
+                                 database=constances.DATABASE)
     # prepare a cursor object using cursor() method
     cursor = db.cursor()
     # save db
@@ -212,36 +213,30 @@ def saveArticles():
     # saveAllToJson()
     print("Number news save to db: ", number_saved)
 
-
 # delete after "number" of days
-
-
 def deleleOutdateArticles():
-    db = mysql.connector.connect(user=constance.USERNAME, password=constance.PASSWORD,
-                                 host=constance.HOST,
-                                 database=constance.DATABASE)
+    db = mysql.connector.connect(user=constances.USERNAME, password=constances.PASSWORD,
+                                 host=constances.HOST,
+                                 database=constances.DATABASE)
 
     cursor = db.cursor()
     sqlquery = "delete FROM articles where DATE_SUB(now(), INTERVAL {} DAY) > created_at".format(
-        constance.DELETE_AFTER)
+        constances.DELETE_AFTER)
     try:
         cursor.execute(sqlquery)
         db.commit()
     except:
         db.rollback()
     db.close()
-
-
 # get articles from end_id back to end_id - NEWS_PER_LOAD
 
-
 def getNewsFromId(end):
-    db = mysql.connector.connect(user=constance.USERNAME, password=constance.PASSWORD,
-                                 host=constance.HOST,
-                                 database=constance.DATABASE)
+    db = mysql.connector.connect(user=constances.USERNAME, password=constances.PASSWORD,
+                                 host=constances.HOST,
+                                 database=constances.DATABASE)
     cursor = db.cursor()
     query = "SELECT * FROM articles where {}<=id && id<={}".format(
-        end - constance.ARTICLES_PER_LOAD, end)
+        end - (constances.ARTICLES_PER_LOAD*10), end)
     dataNews = []
     try:
         cursor.execute(query)
@@ -266,9 +261,9 @@ def getNewsFromId(end):
 
 
 def getContentsById(articles_id):
-    db = mysql.connector.connect(user=constance.USERNAME, password=constance.PASSWORD,
-                                 host=constance.HOST,
-                                 database=constance.DATABASE)
+    db = mysql.connector.connect(user=constances.USERNAME, password=constances.PASSWORD,
+                                 host=constances.HOST,
+                                 database=constances.DATABASE)
 
     cursor = db.cursor()
     query = "SELECT * FROM contents where articles_id={}".format(
@@ -299,9 +294,9 @@ def getContentsById(articles_id):
 #         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def getLastId():
-    db = mysql.connector.connect(user=constance.USERNAME, password=constance.PASSWORD,
-                                 host=constance.HOST,
-                                 database=constance.DATABASE)
+    db = mysql.connector.connect(user=constances.USERNAME, password=constances.PASSWORD,
+                                 host=constances.HOST,
+                                 database=constances.DATABASE)
     # prepare a cursor object using cursor() method
     cursor = db.cursor()
     query = "SELECT MAX(id) FROM articles"
