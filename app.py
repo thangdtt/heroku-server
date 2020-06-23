@@ -1,56 +1,44 @@
 from flask import Flask, request
-from flask_restful import Resource, Api, reqparse
+from flask_restful import Resource, Api
 
+import threading
+import time
+
+import articles
+import constance
 app = Flask(__name__)
 api = Api(app)
 
-items = []
 
-
-class Item(Resource):
-    parser = reqparse.RequestParser()
-    parser.add_argument('price', type=float, required=True)
-
-    def get(self, name):
-        item = next(filter(lambda x: x['name'] == name, items), None)
-        return {'item': item}, 200 if item else 404
-
-    def post(self, name):
-        item = next(filter(lambda x: x['name'] == name, items), None)
-        if next(filter(lambda x: x['name'] == name, items), None) is not None:
-            # bad request
-            return {'message': 'The item with name {} is already exist'.format(name)}, 400
-
-        data = Item.parser.parse_args()
-        
-        item = {'name': name, 'price': data['price']}
-        items.append(item)
-        return item, 201
-
-    def delete(self, name):
-        item = next(filter(lambda x: x['name'] == name, items), None)
-        if item is not None:
-            items.remove(item)
-            return {'items': items}
-
-    def put(self, name):
-        data = Item.parser.parse_args()
-        item = next(filter(lambda x: x['name'] == name, items), None)
-        if item is None:
-            item = {'name': name, 'price': data['price']}
-            items.append(item)
+class Articles(Resource):
+    def get(self, id):
+        items = []
+        if (int(id) == 0):
+            items = articles.getNewsFromId(articles.getLastId())
         else:
-            item.update(data)
-        return item
+            items = articles.getNewsFromId(int(id))
+        if items is None:
+            return {'message': "Can't get articles"}, 400
+        return items, 200
+        # return {'number of article': len(items), 'articles': items}, 200
 
 
-class ItemList(Resource):
-    def get(self):
-        return {'items': items},
+api.add_resource(Articles, '/article/<string:id>')
 
 
-api.add_resource(Item, '/item/<string:name>')
-api.add_resource(ItemList, '/item')
+def crawlData():
+    while True:
+        articles.saveArticles()
+        time.sleep(constance.TIME_BETWEEN_CRAWL)
+
+
+@app.route('/run')
+def craw():
+    threading.Thread(
+        target=crawlData,
+    ).start()
+    return "Crawling"
+
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, threaded=True)
