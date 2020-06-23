@@ -25,20 +25,20 @@ class Articles(Resource):
 api.add_resource(Articles, '/article/<string:id>')
 
 
-def crawlData():
-    while True:
-        saveArticles()
-        time.sleep(constances.TIME_BETWEEN_CRAWL)
-        print("Crawled")
+# def crawlData():
+#     while True:
+#         saveArticles()
+#         time.sleep(constances.TIME_BETWEEN_CRAWL)
+#         print("Crawled")
 
 
-@app.route('/run')
-def craw():
-    threading.Thread(
-        target=crawlData,
-    ).start()
-    return "Crawling"
+# @app.route('/run')
+# def craw():
+#     threading.Thread(
+#         target=crawlData,
+#     ).start()
+#     return "Crawling"
 
 
 if __name__ == '__main__':
-    app.run(debug=True, threaded=True)
+    app.run(debug=True)
