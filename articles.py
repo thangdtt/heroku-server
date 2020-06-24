@@ -13,7 +13,6 @@ PATH = "/tin-nong"
 
 
 def crawNewsData(baseUrl, url):
-    deleleOutdateArticles()
     response = requests.get(url)
     if response.status_code != 200:
         return []
@@ -77,6 +76,11 @@ def crawNewsData(baseUrl, url):
             if check_video != []:
                 continue
 
+            check_table = ""
+            check_table = soup.findAll("table")
+            if check_table != []:
+                continue
+
             check_live = ""
             check_live = soup.findAll("article", id="content-live")
             if check_live != []:
@@ -115,7 +119,7 @@ def crawNewsData(baseUrl, url):
                     if obj.name == "img":
                         obj_info = obj.attrs["data-src"]
                         obj_type = "image"
-                    if obj_info != "" and obj_type != "":
+                    if obj_type != "" and obj_info != "" and obj_info != " " and obj_info != "\n":
                         listContent.append({
                             "info": obj_info,
                             "type": obj_type
@@ -146,19 +150,27 @@ def crawNewsData(baseUrl, url):
 
 def saveArticles():
     data = crawNewsData(BASE_URL, BASE_URL + PATH)
+    print("Crawled")
     if data == []:
         return 1
     number_saved = 0
     # save json
     # listToJson("one_day ", data)
 
-    # Open database connection
     db = mysql.connector.connect(user=constances.USERNAME, password=constances.PASSWORD,
                                  host=constances.HOST,
                                  database=constances.DATABASE)
-    # prepare a cursor object using cursor() method
     cursor = db.cursor()
-    # save db
+    #delete outdate
+    query = "delete FROM articles where DATE_SUB(date(now()), INTERVAL {} DAY) > date(created_at)".format(
+        constances.DELETE_AFTER)
+    try:
+        cursor.execute(query)
+        db.commit()
+    except:
+        db.rollback()
+
+    # save to db
     for index, item in enumerate(data[::-1]):
         check = 0
         _link = item["link"]
@@ -175,6 +187,8 @@ def saveArticles():
             cursor.execute(query)
             # Commit your changes in the database
             db.commit()
+            #debug
+            print('added: ', title)
             number_saved = number_saved + 1
             check = 1
         except:
@@ -196,17 +210,25 @@ def saveArticles():
                 # on error set the articles_id to -1
                 articles_id = -1
             # save content
-            for index2, item2 in enumerate(content):
-                info = item2["info"]
-                type = item2["type"]
-                query = "INSERT INTO contents(articles_id, info, type, created_at) VALUES ('{}', '{}', '{}', {})".format(
-                    articles_id, info, type, 'NOW()')
-                # print(query)
-                try:
+            try:
+                for index2, item2 in enumerate(content):
+                    info = item2["info"]
+                    type = item2["type"]
+                    query = "INSERT INTO contents(articles_id, info, type, created_at) VALUES ('{}', '{}', '{}', {})".format(
+                        articles_id, info, type, 'NOW()')
+                    # print(query)
+                    # TODO: Fix here (commit in or outside of for loop)
+                    # try:
+                    #     cursor.execute(query)
+                    #     print('added {}',title)
+                    #     db.commit()
+                    # except:
+                    #     db.rollback()
+
                     cursor.execute(query)
                     db.commit()
-                except:
-                    db.rollback()
+            except:
+                db.rollback()
             content = []
 
     db.close()
@@ -214,50 +236,61 @@ def saveArticles():
     print("Number news save to db: ", number_saved)
 
 # delete after "number" of days
-def deleleOutdateArticles():
-    db = mysql.connector.connect(user=constances.USERNAME, password=constances.PASSWORD,
-                                 host=constances.HOST,
-                                 database=constances.DATABASE)
 
-    cursor = db.cursor()
-    sqlquery = "delete FROM articles where DATE_SUB(now(), INTERVAL {} DAY) > created_at".format(
-        constances.DELETE_AFTER)
-    try:
-        cursor.execute(sqlquery)
-        db.commit()
-    except:
-        db.rollback()
-    db.close()
+
+# def deleleOutdateArticles():
+#     db = mysql.connector.connect(user=constances.USERNAME, password=constances.PASSWORD,
+#                                  host=constances.HOST,
+#                                  database=constances.DATABASE)
+
+#     cursor = db.cursor()
+#     sqlquery = "delete FROM articles where DATE_SUB(date(now()), INTERVAL {} DAY) > date(created_at)".format(
+#         constances.DELETE_AFTER)
+#     try:
+#         cursor.execute(sqlquery)
+#         db.commit()
+#     except:
+#         db.rollback()
+#     db.close()
+
 # get articles from end_id back to end_id - NEWS_PER_LOAD
-
 def getNewsFromId(end):
     db = mysql.connector.connect(user=constances.USERNAME, password=constances.PASSWORD,
                                  host=constances.HOST,
                                  database=constances.DATABASE)
     cursor = db.cursor()
-    query = "SELECT * FROM articles where {}<=id && id<={}".format(
-        end - (constances.ARTICLES_PER_LOAD*10), end)
+    cursor.execute("SELECT * FROM articles LIMIT 1")
+    first_id = cursor.fetchone()
+    if first_id[0] is None: return [] 
+
+    if end < first_id[0]:
+        return []
+        
+    start = end - (constances.ARTICLES_PER_LOAD)
+    if start < 1:
+        start = 1
+    
+    
+    # query = "SELECT * FROM articles where {}<=id && id<={}".format(start, end)
+    query = "SELECT * FROM articles where id between {} and {}".format(start, end)
+
     dataNews = []
-    try:
-        cursor.execute(query)
-        records = cursor.fetchall()
-        for row in records:
-            dataNews.append({
-                "id": row[0],
-                "link": row[1],
-                "time": row[2],
-                "category": row[3],
-                "title": row[4],
-                "location": row[5],
-                "description": row[6],
-                "content": getContentsById(row[0]),
-                "author": row[7],
-            })
-        db.commit()
-    except:
-        db.rollback()
+    cursor.execute(query)
+    records = cursor.fetchall()
+    for row in records:
+        dataNews.append({
+            "id": row[0],
+            "link": row[1],
+            "time": row[2],
+            "category": row[3],
+            "title": row[4],
+            "location": row[5],
+            "description": row[6],
+            "content": getContentsById(row[0]),
+            "author": row[7],
+        })
     db.close()
-    return dataNews
+    return dataNews[::-1]
 
 
 def getContentsById(articles_id):
@@ -279,9 +312,8 @@ def getContentsById(articles_id):
                 "info": row[2],
                 "type": row[3],
             })
-        db.commit()
     except:
-        db.rollback()
+        pass
     db.close()
     return dataContents
 
@@ -307,9 +339,8 @@ def getLastId():
         for index in records:
             result = index[0]
             break
-        db.commit()
     except:
-        db.rollback()
+        pass
     db.close()
     return 0 if result is None else result
 
