@@ -3,7 +3,7 @@ class constances:
     # USERNAME = "root"
     # PASSWORD = "Aa@123456"
     # DATABASE = "datatrends"
-    #ARTICLES_PER_LOAD = 14
+    # ARTICLES_PER_LOAD = 14
     
     TIME_BETWEEN_CRAWL = 10800
     DELETE_AFTER = 3

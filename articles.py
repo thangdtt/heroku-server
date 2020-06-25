@@ -21,16 +21,15 @@ def crawNewsData(baseUrl, url):
     titles = soup.findAll('h3', class_='title-news')
     links = [link.find('a').attrs["href"] for link in titles]
     data = []
-
     for link in links:
         # check video
         if link.find("video") != -1:
             continue
 
-        news = requests.get(link)
+        news = requests.get(link)  
         if news.status_code != 200:
             continue
-
+            
         soup = BeautifulSoup(news.content, "html.parser")
         soup = html.unescape(soup)
 
@@ -162,7 +161,7 @@ def saveArticles():
                                  database=constances.DATABASE)
     cursor = db.cursor()
     #delete outdate
-    query = "delete FROM articles where DATE_SUB(date(now()), INTERVAL {} DAY) > date(created_at)".format(
+    query = 'delete FROM articles where DATE_SUB(date(now()), INTERVAL {} DAY) > date(created_at)'.format(
         constances.DELETE_AFTER)
     try:
         cursor.execute(query)
@@ -176,12 +175,12 @@ def saveArticles():
         _link = item["link"]
         time = item["time"]
         category = item["category"]
-        title = item["title"]
+        title = item["title"].replace('"','\\"')
         location = item["location"]
-        description = item["description"]
-        author = item["author"]
+        description = item["description"].replace('"','\\"')
+        author = item["author"].replace('"','\\"')
         content = item["content"]
-        query = "INSERT INTO articles(link, time, category, title, location, description, author, created_at) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {})".format(
+        query = 'INSERT INTO articles(link, time, category, title, location, description, author, created_at) VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", {})'.format(
             _link, time, category, title, location, description, author, 'NOW()')
         try:
             cursor.execute(query)
@@ -192,43 +191,35 @@ def saveArticles():
             number_saved = number_saved + 1
             check = 1
         except:
+            print(query)
+            db.rollback()
             check = 0
             query = "ALTER TABLE articles AUTO_INCREMENT = {}".format(
                 getLastId())
             cursor.execute(query)
             db.commit()
-            db.rollback()
         if check == 1:
             query = "SELECT MAX(id) FROM articles"
             try:
                 cursor.execute(query)
                 result = cursor.fetchone()
                 articles_id = result[0]
-                # print(articles_id)
             except:
-                db.rollback()
                 # on error set the articles_id to -1
                 articles_id = -1
             # save content
-            try:
-                for index2, item2 in enumerate(content):
-                    info = item2["info"]
-                    type = item2["type"]
-                    query = "INSERT INTO contents(articles_id, info, type, created_at) VALUES ('{}', '{}', '{}', {})".format(
-                        articles_id, info, type, 'NOW()')
-                    # print(query)
-                    # TODO: Fix here (commit in or outside of for loop)
-                    # try:
-                    #     cursor.execute(query)
-                    #     print('added {}',title)
-                    #     db.commit()
-                    # except:
-                    #     db.rollback()
-
+            
+            for index2, item2 in enumerate(content):
+                info = item2["info"].replace('"','\\"')
+                _type = item2["type"]
+                query = 'INSERT INTO contents(articles_id, info, type, created_at) VALUES ("{}", "{}", "{}", {})'.format(
+                    articles_id, info, _type, 'NOW()')
+                try:
                     cursor.execute(query)
                     db.commit()
-            except:
-                db.rollback()
+                except:
+                    print(query)
+                    db.rollback()
             content = []
 
     db.close()
@@ -350,6 +341,7 @@ def getLastId():
 
 
 # if __name__ == "__main__":
+#     saveArticles()
 # for index in range(1,200):
 #     link="https://vnexpress.net/thoi-su-p{}".format(index)
 #     saveNews(crawNewsData("https://vnexpress.net",link))
